@@ -25,7 +25,8 @@ from config import DefaultConfig
 import nest_asyncio
 nest_asyncio.apply()
 
-
+# os.environ["GOOGLE_CSE_ID"] = "e01874a788c58433b"
+# os.environ["GOOGLE_API_KEY"] = "AIzaSyC7ZKtOWBP1CpWo3ZKP4fgZy-gzwx-t2xU"
 
 CONFIG = DefaultConfig()
 logging.basicConfig(level=logging.DEBUG)
