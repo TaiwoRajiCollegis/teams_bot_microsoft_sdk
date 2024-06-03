@@ -8,7 +8,7 @@ from langchain_core.prompts import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from langchain.memory import ChatMessageHistory, SQLChatMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory, SQLChatMessageHistory
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_google_vertexai import ChatVertexAI
 from botbuilder.core import ActivityHandler, TurnContext, CardFactory
