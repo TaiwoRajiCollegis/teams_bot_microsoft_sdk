@@ -1,0 +1,27 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+botbuilder-core = "*"
+asyncio = "*"
+aiohttp = "*"
+cookiecutter = "==1.7.0"
+langchain-core = "*"
+langchain-google-vertexai = "*"
+botbuilder-integration-aiohttp = ">=4.14.0"
+langchain = "*"
+pybigquery = "*"
+install = "*"
+google-api-python-client = "*"
+langchain-google-community = "*"
+langchain-google-genai = "*"
+google-cloud-aiplatform = "*"
+nest-asyncio = "*"
+pytz = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "*"

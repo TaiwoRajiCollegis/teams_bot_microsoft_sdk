@@ -1,0 +1,11 @@
+botbuilder-core 
+asyncio 
+aiohttp
+langchain-core 
+langchain-google-vertexai 
+botbuilder-integration-aiohttp 
+langchain
+pybigquery
+langchain-google-genai
+google-api-python-client
+langchain-google-community
