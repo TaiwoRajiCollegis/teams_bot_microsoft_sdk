@@ -25,16 +25,13 @@ from config import DefaultConfig
 import nest_asyncio
 nest_asyncio.apply()
 
-
-
 CONFIG = DefaultConfig()
 logging.basicConfig(level=logging.DEBUG)
 # Create adapter.
 # See https://aka.ms/about-bot-adapter to learn more about how bots work.
 SETTINGS = BotFrameworkAdapterSettings(CONFIG.APP_ID, CONFIG.APP_PASSWORD)
 ADAPTER = BotFrameworkAdapter(SETTINGS)
-
-
+ADAPTER.use(ShowTypingMiddleware(0.1,1.2))
 
 # Catch-all for errors.
 async def on_error(context: TurnContext, error: Exception):
@@ -62,10 +59,11 @@ async def on_error(context: TurnContext, error: Exception):
         )
         # Send a trace activity, which will be displayed in Bot Framework Emulator
         await context.send_activity(trace_activity)
+        
 
 
-# ADAPTER.on_turn_error = on_error
-# ADAPTER.use(ShowTypingMiddleware(0.5,2))
+ADAPTER.on_turn_error = on_error
+
 
 # Create the Bot
 BOT = MyBot()
@@ -83,14 +81,12 @@ async def messages(req: Request) -> Response:
 
     activity = Activity().deserialize(body)
     auth_header = req.headers["Authorization"] if "Authorization" in req.headers else ""
-    try:
-        response = await ADAPTER.process_activity(activity, auth_header, BOT.on_turn)
-        if response:
-            logging.info(f"RES: {response}")
-            return json_response(data=response.body, status=response.status)
-        return Response(status=201)
-    except Exception as e:
-        return("The Bot encountered a bug")
+    response = await ADAPTER.process_activity(activity, auth_header, BOT.on_turn)
+    if response:
+        logging.info(f"RES: {response}")
+        return json_response(data=response.body, status=response.status)
+    return Response(status=201)
+
 
 
 APP = web.Application(middlewares=[aiohttp_error_middleware])

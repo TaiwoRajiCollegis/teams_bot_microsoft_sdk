@@ -1,5 +1,5 @@
 # 
-FROM python:3.11.4
+FROM python:3.11.9
 
 # 
 EXPOSE 3978
@@ -10,7 +10,7 @@ WORKDIR /
 COPY ./requirements.txt /requirements.txt
 
 # 
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+RUN pip install -r requirements.txt
 
 COPY ./ /
 # 

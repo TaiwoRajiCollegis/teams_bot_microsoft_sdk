@@ -41,6 +41,7 @@ Design: Ed is a beautifully crafted chatbot with an intuitive interface and user
 Communication: Ed communicates with employees in a clear, engaging, and conversational manner. He can respond to natural language queries, making it easy for employees to get the information and assistance they need. Ed gets to know peopple when he can
 Personality: Ed has a charming and conversational personality. He is always eager to help and greets employees with a friendly smile. He understands humor and enjoys incorporating jokes into conversations when appropriate, maintaining a positive and light-hearted atmosphere.
 Additional Features:
+ED FOLLOWS INSTRUCTIONS TO A TEE
 Real-Time Insights: Ed provides real-time insights into employee engagement and productivity, helping managers make informed decisions and optimize workflows.
 Employee Onboarding: Ed assists new employees with onboarding by providing them with the information, resources, and support they need to feel welcome and empowered in their new roles.
 24/7 Availability: Ed is available 24/7, ensuring that employees can always get the assistance they need, no matter the time of day or night.
@@ -59,14 +60,43 @@ IF you dont know the answer to something absolutely say you dont know do not mak
 
 @tool
 def current_datetime(timezone: str):
-    "Get the current date and time in the format Thursday, May 30, 2024 at 11:41 AM returns current day of the week, day, month year and time"
+    """
+    Get the current date and time in the format Thursday, May 30, 2024 at 11:41 AM returns current day of the week, day, month year and time
+    
+    always use this tool for querries that depend on the curent time e.g
+    what is the time 
+    do i have any meetings today 
+    are there any public holidays soon
+    when do i get off work
+    when is the next christmas
+    """
     return  datetime.datetime.now(pytz.timezone(timezone)).strftime("%A, %B %d, %Y at %I:%M %p")
 
 search = GoogleSearchAPIWrapper()
 
 google_search_tool = Tool(
     name="google_search",
-    description="Search Google for recent results. Always return the response to the user When you use this tool to the user End your response with from google search",
+    description="""
+    Search Google for recent results. Always return the response to the user When you use this tool to the user End your response with from google search
+    
+    
+    Return results in the format :
+    
+    
+    'Your Answer based on the results if necessary 
+    
+    Google Search Results:
+    
+    1.Result Title Blurb
+        Description
+        url
+    
+    
+    2.Result Title Blurb
+        Description
+        url
+    ...
+    '""",
     func=search.run,
 )
 
@@ -95,9 +125,9 @@ class MyBot(TeamsActivityHandler):
     # card = CardFactory.adaptive_card
     project='collegis-sandbox-taiwo'
     dataset='teams_bot_memory'
-    connection_string="sqlite+pysqlite:///db"
-    # connection_string=f'bigquery://{project}/{dataset}'
-    chat = ChatVertexAI(model_name="gemini-pro", streaming=True)
+    # connection_string="sqlite+pysqlite:///db"
+    connection_string = f'bigquery://{project}/{dataset}?credentials_path=/Users/taiwo.raji/code/botapi/collegis-sandbox-taiwo-58826b977943.json'
+    chat = ChatVertexAI(model_name="gemini-pro")
     
     # .bind_tools(tools)
 
@@ -141,7 +171,7 @@ class MyBot(TeamsActivityHandler):
         else:
             # memory = ChatMessageHistory()
             memory = SQLChatMessageHistory(
-                session_id=f'{aad_id}_{conv_id}', connection_string=self.connection_string
+                session_id=f'{aad_id}_{conv_id}', connection=self.connection_string
             )
             self.memory[f'{aad_id}_{conv_id}'] = memory
 
@@ -154,13 +184,13 @@ class MyBot(TeamsActivityHandler):
 
         
 
-        chain = self.prompt | self.chat
-        chain_with_message_history = RunnableWithMessageHistory(
-        chain,
-        lambda session_id: memory,
-        input_messages_key="input",
-        history_messages_key="chat_history",
-    )
+    #     chain = self.prompt | self.chat
+    #     chain_with_message_history = RunnableWithMessageHistory(
+    #     chain,
+    #     lambda session_id: memory,
+    #     input_messages_key="input",
+    #     history_messages_key="chat_history",
+    # )
         
         agent = create_tool_calling_agent(self.chat, tools, self.prompt)
         agent_executor = AgentExecutor(agent=agent, tools=tools, max_iterations=10, verbose=True, return_intermediate_steps=True)
@@ -171,6 +201,7 @@ class MyBot(TeamsActivityHandler):
         lambda session_id: memory,
         input_messages_key="input",
         history_messages_key="chat_history",
+        
         )
 
 
@@ -183,7 +214,7 @@ class MyBot(TeamsActivityHandler):
         
         # logging.info(f"MEMORY: {json.dumps(memory.messages, indent=2)}")
         # response = chain_with_message_history.invoke({'chat_history': history.buffer_as_messages, "name": name, "input":turn_context.activity.text},{"configurable": {"session_id": self.memory}}).content
-        response = await agent_with_chat_history.ainvoke(
+        response = agent_with_chat_history.invoke(
         {"input": turn_context.activity.text, "name":name, "timezone":timezone},
         config={"configurable": {"session_id": memory}},
         )
