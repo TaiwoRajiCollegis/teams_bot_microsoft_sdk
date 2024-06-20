@@ -2,6 +2,12 @@
 # Licensed under the MIT License.
 import datetime
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    get_buffer_string,
+)
 from langchain_core.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder,
@@ -16,7 +22,7 @@ from botbuilder.core.teams import TeamsActivityHandler
 from botbuilder.schema import ChannelAccount
 import os
 import logging
-from langchain_core.runnables.history import RunnableWithMessageHistory
+from helpers.history import RunnableWithMessageHistory
 import json
 from langchain.tools import BaseTool, StructuredTool, tool
 from langchain_google_community import GoogleSearchAPIWrapper
@@ -25,6 +31,8 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 logging.basicConfig(level=logging.INFO)
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAI
 import pytz
+import langchain
+langchain.debug = True
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "collegis-sandbox-taiwo-58826b977943.json"
 template = """
 You are Ed a Chatbot created by taiwo raji to Assist Collegis Employees You will assume the Profile Defined in The profile Section
@@ -46,16 +54,18 @@ Real-Time Insights: Ed provides real-time insights into employee engagement and 
 Employee Onboarding: Ed assists new employees with onboarding by providing them with the information, resources, and support they need to feel welcome and empowered in their new roles.
 24/7 Availability: Ed is available 24/7, ensuring that employees can always get the assistance they need, no matter the time of day or night.
 Overall: Ed is a cutting-edge AI bot designed to transform the way Collegis employees work. With his powerful capabilities, charming personality, and dedication to continuous learning, he is the perfect digital companion to help employees navigate their day-to-day tasks with ease and achieve their full potential.
-======================================================================
 
-======================================================================
+
+
 User Info:
-======================================================================
 You are talking to {name}
 The user is in {timezone} use this Timezone when getting the current time. The timezone is only for the time it is not the users exact location
 
 
 IF you dont know the answer to something absolutely say you dont know do not make up information that should be factual just say you dont know it is very important for compliance
+
+Conversation History
+{chat_history}
 """
 
 @tool
@@ -125,8 +135,8 @@ class MyBot(TeamsActivityHandler):
     # card = CardFactory.adaptive_card
     project='collegis-sandbox-taiwo'
     dataset='teams_bot_memory'
-    # connection_string="sqlite+pysqlite:///db"
-    connection_string = f'bigquery://{project}/{dataset}?credentials_path=/Users/taiwo.raji/code/botapi/collegis-sandbox-taiwo-58826b977943.json'
+    connection_string="sqlite+pysqlite:///db"
+    # connection_string = f'bigquery://{project}/{dataset}?credentials_path=/Users/taiwo.raji/code/botapi/collegis-sandbox-taiwo-58826b977943.json'
     chat = ChatVertexAI(model_name="gemini-pro")
     
     # .bind_tools(tools)
@@ -143,7 +153,7 @@ class MyBot(TeamsActivityHandler):
             template,
             
         ),
-        MessagesPlaceholder(variable_name="chat_history"),
+        # MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}")
     ]
@@ -158,10 +168,17 @@ class MyBot(TeamsActivityHandler):
         # modified_text = TurnContext.remove_recipient_mention(turn_context.activity)
         # print(modified_text)
         # logging.info(f"Turn Context : {json.dumps(turn_context.activity.as_dict(), indent=2)}")
+        # mentioned = turn_context.activity.as_dict().get("entities").get("conversation_type")
+        conversation_type = turn_context.activity.as_dict().get("conversation").get("conversation_type")
         aad_id = turn_context.activity.from_property.__dict__.get('aad_object_id')
         name = turn_context.activity.from_property.__dict__.get('name')
         conv_id = turn_context.activity.conversation.__dict__.get('id')
         timezone = turn_context.activity.as_dict().get('local_timezone')
+        # logging.info(f"turn context: {turn_context.activity.__dict__}")
+        # logging.info(f"from prop: {turn_context.activity.from_property.__dict__}")
+        # logging.info(f"entities: {turn_context.activity.entities}")
+        
+        logging.info(f"turn context: {turn_context.activity.as_dict()}")
         logging.info(f"AAD: {aad_id}")
         logging.info(f"CONV_ID: {conv_id}")
         logging.info(f"MESSAGE: {turn_context.activity.text}")
@@ -171,19 +188,19 @@ class MyBot(TeamsActivityHandler):
         else:
             # memory = ChatMessageHistory()
             memory = SQLChatMessageHistory(
-                session_id=f'{aad_id}_{conv_id}', connection=self.connection_string
+                session_id=f'{conv_id}', connection=self.connection_string
             )
-            self.memory[f'{aad_id}_{conv_id}'] = memory
+            self.memory[f'{conv_id}'] = memory
 
 
-        if self.histories.get(f'{name}_{conv_id}'):
+        if self.histories.get(f'{conv_id}'):
             history = self.histories.get(f'{name}_{conv_id}')
         else:
             history = ConversationBufferWindowMemory(memory_key="chat_history", k=50,return_messages=True)
-            self.histories[f'{name}_{conv_id}'] = history
+            self.histories[f'{conv_id}'] = history
 
         
-
+        
     #     chain = self.prompt | self.chat
     #     chain_with_message_history = RunnableWithMessageHistory(
     #     chain,
@@ -202,6 +219,7 @@ class MyBot(TeamsActivityHandler):
         input_messages_key="input",
         history_messages_key="chat_history",
         
+        
         )
 
 
@@ -214,14 +232,19 @@ class MyBot(TeamsActivityHandler):
         
         # logging.info(f"MEMORY: {json.dumps(memory.messages, indent=2)}")
         # response = chain_with_message_history.invoke({'chat_history': history.buffer_as_messages, "name": name, "input":turn_context.activity.text},{"configurable": {"session_id": self.memory}}).content
-        response = agent_with_chat_history.invoke(
-        {"input": turn_context.activity.text, "name":name, "timezone":timezone},
-        config={"configurable": {"session_id": memory}},
-        )
-        # response = self.chat.invoke(turn_context.activity.text).content
-        # logging.info(f"RESPONSE: {response}")
-        
-        await turn_context.send_activity(response.get('output') if response.get('output') != "" else "no response")
+        if conversation_type != "personal" and "<at>Ed</at>" not in turn_context.activity.text:
+            memory.add_message(HumanMessage(content=turn_context.activity.text, name=name))
+            memory.add_message(AIMessage(content="No Response sent"))
+            
+        else:
+            response = agent_with_chat_history.invoke(
+            {"input": HumanMessage(content=turn_context.activity.text, name=name), "name":name, "timezone":timezone},
+            config={"configurable": {"session_id": memory}},
+            )
+            # response = self.chat.invoke(turn_context.activity.text).content
+            # logging.info(f"RESPONSE: {response}")
+            
+            await turn_context.send_activity(response.get('output') if response.get('output') != "" else "no response")
         # await turn_context.send_activity(response)
 
 
