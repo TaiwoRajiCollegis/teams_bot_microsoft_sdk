@@ -1,8 +1,8 @@
 app_name: ed
 image_name: ed-image
 location: us-central1
-nonprod_tag: $(location)-docker.pkg.dev/collegis-shared-services-dev/repo-collegis-shared-services-dev/$(image_name):latest
-nonprod_service_name: ed-service-collegis-shared-services-dev 
+dev_tag: $(location)-docker.pkg.dev/collegis-shared-services-dev/repo-collegis-shared-services-dev/$(image_name):latest
+dev_service_name: ed-service-collegis-shared-services-dev 
 prod_tag: $(location)-docker.pkg.dev/collegis-shared-services-prod/repo-collegis-shared-services-prod/$(image_name):latest
 prod_service_name: ed-service-collegis-shared-services-prod
 
