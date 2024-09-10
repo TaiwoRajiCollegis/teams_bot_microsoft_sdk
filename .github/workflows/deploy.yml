@@ -61,7 +61,7 @@ jobs:
 
       - name: Build and Push ED Docker Image
         run: |
-          docker build -t ed-image --build-arg APP_NAME=ed -f Dockerfile.ed .
+          docker build -t ed-image --build-arg APP_NAME=ed -f Dockerfile .
           docker tag ed-image ${{needs.get_params.outputs.dev_tag}}
           docker push ${{needs.get_params.outputs.dev_tag}}
 
