@@ -15,6 +15,7 @@ jobs:
       app_name: ${{steps.yaml_read.outputs.app_name}}
       image_name: ${{steps.yaml_read.outputs.image_name}}
       location: ${{steps.yaml_read.outputs.location}}
+      port: ${{steps.yaml_read.outputs.port}}
       dev_tag: ${{steps.yaml_read.outputs.dev_tag}}
       prod_tag: ${{steps.yaml_read.outputs.prod_tag}}
       dev_service_name: ${{steps.yaml_read.outputs.dev_service_name}}
@@ -79,6 +80,7 @@ jobs:
           gcloud run deploy ${{needs.get_params.outputs.dev_service_name}} \
             --image=${{needs.get_params.outputs.dev_tag}} \
             --region=${{needs.get_params.outputs.location}}\
+            --update-env-vars GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }},GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}\
             --allow-unauthenticated
 
   promote-to-prod:
@@ -128,4 +130,5 @@ jobs:
           gcloud run ${{needs.get_params.outputs.prod_service_name}} \
             --image=${{needs.get_params.outputs.prod_tag}} \
             --region=us-central1 \
+            --update-env-vars GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }},GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}\
             --allow-unauthenticated
