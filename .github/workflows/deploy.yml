@@ -80,6 +80,7 @@ jobs:
           gcloud run deploy ${{needs.get_params.outputs.dev_service_name}} \
             --image=${{needs.get_params.outputs.dev_tag}} \
             --region=${{needs.get_params.outputs.location}}\
+            --port=${{needs.get_params.outputs.port}}\
             --update-env-vars GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }},GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}\
             --allow-unauthenticated
 
@@ -129,6 +130,7 @@ jobs:
         run: |
           gcloud run ${{needs.get_params.outputs.prod_service_name}} \
             --image=${{needs.get_params.outputs.prod_tag}} \
-            --region=us-central1 \
+            --region=${{needs.get_params.outputs.location}} \
+            --port=${{needs.get_params.outputs.port}}\
             --update-env-vars GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }},GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}\
             --allow-unauthenticated
