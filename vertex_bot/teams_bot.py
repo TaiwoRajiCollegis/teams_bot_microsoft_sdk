@@ -1,12 +1,15 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 import datetime
+from langchain_logger.callback import ChainOfThoughtCallbackHandler
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
     HumanMessage,
     get_buffer_string,
+    messages_to_dict,
+    messages_from_dict
 )
 from langchain_core.prompts import (
     ChatPromptTemplate,
@@ -14,7 +17,7 @@ from langchain_core.prompts import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from langchain_community.chat_message_histories import ChatMessageHistory, SQLChatMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory, SQLChatMessageHistory, FirestoreChatMessageHistory
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_google_vertexai import ChatVertexAI
 from botbuilder.core import ActivityHandler, TurnContext, CardFactory
@@ -28,11 +31,29 @@ from langchain.tools import BaseTool, StructuredTool, tool
 from langchain_google_community import GoogleSearchAPIWrapper
 from langchain_core.tools import Tool
 from langchain.agents import create_tool_calling_agent, AgentExecutor
-logging.basicConfig(level=logging.INFO)
+
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAI
+from pythonjsonlogger import jsonlogger
 import pytz
 import langchain
-langchain.debug = True
+from google.cloud.firestore import Client
+import google.auth
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = jsonlogger.JsonFormatter()
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+cot= ChainOfThoughtCallbackHandler(logger=logger)
+
+# credentials, project = google.auth.load_credentials_from_dict(json.loads(f"{os.environ.get('GOOGLE_CREDENTIALS')}"))
+# gcreds = json.loads(os.environ.get('GOOGLE_CREDENTIALS')))
+
+# with open('google_credentials.json','w') as file:
+#     json.dump(gcreds, file)
+
+# langchain.debug = True
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "collegis-sandbox-taiwo-58826b977943.json"
 template = """
 You are Ed a Chatbot created by taiwo raji to Assist Collegis Employees You will assume the Profile Defined in The profile Section
@@ -136,8 +157,8 @@ class MyBot(TeamsActivityHandler):
     project='collegis-sandbox-taiwo'
     dataset='teams_bot_memory'
     connection_string="sqlite+pysqlite:///db"
-    # connection_string = f'bigquery://{project}/{dataset}?credentials_path=/Users/taiwo.raji/code/botapi/collegis-sandbox-taiwo-58826b977943.json'
-    chat = ChatVertexAI(model_name="gemini-pro")
+    connection_string_bq = f'bigquery://{project}/{dataset}?credentials_path=/Users/taiwo.raji/code/teams_bot/collegis-sandbox-taiwo-58826b977943.json'
+    chat = ChatVertexAI(model_name="gemini-pro",callbacks=[cot])
     
     # .bind_tools(tools)
 
@@ -167,7 +188,7 @@ class MyBot(TeamsActivityHandler):
         # turn_context.Activity.RemoveRecipientMention()
         # modified_text = TurnContext.remove_recipient_mention(turn_context.activity)
         # print(modified_text)
-        # logging.info(f"Turn Context : {json.dumps(turn_context.activity.as_dict(), indent=2)}")
+        logger.info(json.dumps(turn_context.activity.as_dict()))
         # mentioned = turn_context.activity.as_dict().get("entities").get("conversation_type")
         conversation_type = turn_context.activity.as_dict().get("conversation").get("conversation_type")
         aad_id = turn_context.activity.from_property.__dict__.get('aad_object_id')
@@ -178,37 +199,29 @@ class MyBot(TeamsActivityHandler):
         # logging.info(f"from prop: {turn_context.activity.from_property.__dict__}")
         # logging.info(f"entities: {turn_context.activity.entities}")
         
-        logging.info(f"turn context: {turn_context.activity.as_dict()}")
-        logging.info(f"AAD: {aad_id}")
-        logging.info(f"CONV_ID: {conv_id}")
-        logging.info(f"MESSAGE: {turn_context.activity.text}")
+        # logging.info(f"turn context: {turn_context.activity.as_dict()}")
+        logger.info(f"COV TYPE: {conversation_type}")
+        logger.info(f"AAD: {aad_id}")
+        logger.info(f"CONV_ID: {conv_id}")
+        logger.info(f"MESSAGE: {turn_context.activity.text}")
+        # credentials, project = google.auth.load_credentials_from_dict(json.loads(f"{os.environ.get('GOOGLE_CREDENTIALS')}"))
+        credentials, project = google.auth.load_credentials_from_file('google_credentials.json')
+        firestore_client = Client(project, credentials)
         
-        if self.memory.get(f'{aad_id}_{conv_id}'):
-            memory= self.memory.get(f'{aad_id}_{conv_id}')
+        
+        
+        
+        if self.memory.get(f'{conv_id}'):
+            memory= self.memory.get(f'{conv_id}')
+            
         else:
             # memory = ChatMessageHistory()
-            memory = SQLChatMessageHistory(
-                session_id=f'{conv_id}', connection=self.connection_string
-            )
+            # memory = SQLChatMessageHistory(
+            #     session_id=f'{conv_id}', connection=self.connection_string
+            # )
+            memory = FirestoreChatMessageHistory("conversation_history",conv_id,aad_id,firestore_client) 
             self.memory[f'{conv_id}'] = memory
 
-
-        if self.histories.get(f'{conv_id}'):
-            history = self.histories.get(f'{name}_{conv_id}')
-        else:
-            history = ConversationBufferWindowMemory(memory_key="chat_history", k=50,return_messages=True)
-            self.histories[f'{conv_id}'] = history
-
-        
-        
-    #     chain = self.prompt | self.chat
-    #     chain_with_message_history = RunnableWithMessageHistory(
-    #     chain,
-    #     lambda session_id: memory,
-    #     input_messages_key="input",
-    #     history_messages_key="chat_history",
-    # )
-        
         agent = create_tool_calling_agent(self.chat, tools, self.prompt)
         agent_executor = AgentExecutor(agent=agent, tools=tools, max_iterations=10, verbose=True, return_intermediate_steps=True)
         agent_with_chat_history = RunnableWithMessageHistory(
@@ -218,7 +231,7 @@ class MyBot(TeamsActivityHandler):
         lambda session_id: memory,
         input_messages_key="input",
         history_messages_key="chat_history",
-        
+        callbacks=[cot]
         
         )
 
@@ -232,9 +245,9 @@ class MyBot(TeamsActivityHandler):
         
         # logging.info(f"MEMORY: {json.dumps(memory.messages, indent=2)}")
         # response = chain_with_message_history.invoke({'chat_history': history.buffer_as_messages, "name": name, "input":turn_context.activity.text},{"configurable": {"session_id": self.memory}}).content
-        if conversation_type != "personal" and "<at>Ed</at>" not in turn_context.activity.text:
+        if conversation_type not in ["personal",None] and "<at>Ed</at>" not in turn_context.activity.text:
             memory.add_message(HumanMessage(content=turn_context.activity.text, name=name))
-            memory.add_message(AIMessage(content="No Response sent"))
+            memory.add_message(AIMessage(content=" "))
             
         else:
             response = agent_with_chat_history.invoke(
@@ -243,8 +256,11 @@ class MyBot(TeamsActivityHandler):
             )
             # response = self.chat.invoke(turn_context.activity.text).content
             # logging.info(f"RESPONSE: {response}")
-            
-            await turn_context.send_activity(response.get('output') if response.get('output') != "" else "no response")
+            # logging.info(f"Messages: {memory.get_messages()}")
+            resp = response.get('output') 
+            # if response.get('output') != "" else ""
+            await turn_context.send_activity(resp)
+            # return(response.get('output') if response.get('output') != "" else "no response")
         # await turn_context.send_activity(response)
 
 

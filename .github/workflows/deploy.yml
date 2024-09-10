@@ -1,0 +1,122 @@
+name: Build and Deploy Apps
+
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    branches:
+      - 'master'
+  workflow_dispatch:
+
+jobs:
+  get_params:
+    outputs:
+      app_name: ${{steps.yaml_read.outputs.app_name}}
+      image_name: ${{steps.yaml_read.outputs.image_name}}
+      location: ${{steps.yaml_read.outputs.location}}
+      dev_tag: ${{steps.yaml_read.outputs.dev.tag}}
+      prod_tag: ${{steps.yaml_read.outputs.dev.tag}}
+      dev_service_name: ${{steps.yaml_read.outputs.dev.tag}}
+      prod_service_name: ${{steps.yaml_read.outputs.dev.tag}}
+    runs-on: ubuntu-latest
+    steps:
+    - name: YAML Read
+      id: yaml_read
+      uses: pietrobolcato/action-read-yaml@1.1.0
+
+    
+
+  build-and-deploy-dev-ed:
+    runs-on: ubuntu-latest
+    needs: [get_params]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.SA }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: '>= 363.0.0'
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: us-central1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.SA }}
+
+      - name: create google creds file
+        shell: python
+        env:
+          creds: ${{ secrets.SA }}
+        run: |
+          import os
+          import json
+          with open("google_credentials.json","w+") as file:
+            file.write(os.environ['creds'])
+
+      - name: Build and Push ED Docker Image
+        run: |
+          docker build -t ed-image --build-arg APP_NAME=ed -f Dockerfile.ed .
+          docker tag ed-image ${{needs.get_params.outputs.dev_tag}}
+          docker push ${{needs.get_params.outputs.dev_tag}}
+
+      - name: Deploy ED to Cloud Run (Dev)
+        run: |
+          gcloud run deploy ${{needs.get_params.outputs.dev_service_name}} \
+            --image=${{needs.get_params.outputs.dev_tag}} \
+            --region=${{needs.get_params.outputs.location}}\
+            --allow-unauthenticated
+
+  promote-to-prod:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' 
+    needs: [get_params,build-and-deploy-dev-ed] 
+
+    steps:
+      - name: Manual Approval
+        run: |
+          echo "Waiting for manual approval..."
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.SA_PROD }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: '>= 363.0.0'
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: us-central1-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.SA_PROD }}
+      
+      - name: create google creds file
+        shell: python
+        env:
+          creds: ${{ secrets.SA_PROD }}
+        run: |
+          import os
+          import json
+          with open("google_credentials.json","w+") as file:
+            file.write(os.environ['creds'])
+
+      - name: Promote and Push ED Docker Image to Prod
+        run: |
+          docker pull ${{needs.get_params.outputs.dev_tag}}
+          docker tag ${{needs.get_params.outputs.dev_tag}} ${{needs.get_params.outputs.prod_tag}}
+          docker push ${{needs.get_params.outputs.prod_tag}}
+
+      - name: Deploy ED to Cloud Run (Prod)
+        run: |
+          gcloud run ${{needs.get_params.outputs.prod_service_name}} \
+            --image=${{needs.get_params.outputs.prod_tag}} \
+            --region=us-central1 \
+            --allow-unauthenticated

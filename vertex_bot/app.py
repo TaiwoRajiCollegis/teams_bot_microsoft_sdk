@@ -14,10 +14,19 @@ from botbuilder.core import (
     BotFrameworkAdapter,
 )
 from botbuilder.core.integration import aiohttp_error_middleware
-from botbuilder.core.show_typing_middleware import ShowTypingMiddleware
+from show_typing_middleware import ShowTypingMiddleware
 from botbuilder.schema import Activity, ActivityTypes
 import logging
+from pythonjsonlogger import jsonlogger
 import os
+# logging.basicConfig(level=logging.INFO)
+main_logger = logging.getLogger(__name__)
+main_logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = jsonlogger.JsonFormatter()
+handler.setFormatter(formatter)
+main_logger.addHandler(handler)
 
 # from bot import MyBot
 from teams_bot import MyBot
@@ -26,25 +35,25 @@ import nest_asyncio
 nest_asyncio.apply()
 
 CONFIG = DefaultConfig()
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 # Create adapter.
 # See https://aka.ms/about-bot-adapter to learn more about how bots work.
 SETTINGS = BotFrameworkAdapterSettings(CONFIG.APP_ID, CONFIG.APP_PASSWORD)
 ADAPTER = BotFrameworkAdapter(SETTINGS)
-ADAPTER.use(ShowTypingMiddleware(0.1,1.2))
+ADAPTER.use(ShowTypingMiddleware(0.1,1))
 
 # Catch-all for errors.
 async def on_error(context: TurnContext, error: Exception):
     # This check writes out errors to console log .vs. app insights.
     # NOTE: In production environment, you should consider logging this to Azure
     #       application insights.
-    print(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
-    traceback.print_exc()
+    main_logger.info(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
+    # traceback.print_exc()
 
     # Send a message to the user
-    await context.send_activity("The bot encountered an error or bug.")
+    await context.send_activity("The bot encountered an error or bug while responding")
     await context.send_activity(
-        "To continue to run this bot, please fix the bot source code."
+        "Try Rephrasing your ask, If this message persists there may be an error in the source code"
     )
     # Send a trace activity if we're talking to the Bot Framework Emulator
     if context.activity.channel_id == "emulator":
@@ -74,7 +83,7 @@ async def messages(req: Request) -> Response:
     # Main bot message handler.
     if "application/json" in req.headers["Content-Type"]:
         body = await req.json()
-        # logging.info(f"BODY {json.dumps(body, indent=2)}")
+        main_logger.info(f"BODY {json.dumps(body)}")
         
     else:
         return Response(status=415)
@@ -83,17 +92,17 @@ async def messages(req: Request) -> Response:
     auth_header = req.headers["Authorization"] if "Authorization" in req.headers else ""
     response = await ADAPTER.process_activity(activity, auth_header, BOT.on_turn)
     if response:
-        logging.info(f"RES: {response}")
+        main_logger.info(json.dumps(response))
         return json_response(data=response.body, status=response.status)
     return Response(status=201)
 
 
-
 APP = web.Application(middlewares=[aiohttp_error_middleware])
+
 APP.router.add_post("/api/messages", messages)
 
 if __name__ == "__main__":
     try:
-        web.run_app(APP, host="0.0.0.0", port=CONFIG.PORT)
+        web.run_app(APP, host="0.0.0.0", port=CONFIG.PORT, access_log=main_logger)
     except Exception as error:
         raise error

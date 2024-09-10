@@ -1,0 +1,11 @@
+app_name: ed
+image_name: ed-image
+location: us-central1
+nonprod:
+    artifactory: collegis-shared-services-dev
+    repo: repo-collegis-shared-services-dev
+    tag: $(location)-docker.pkg.dev/$(artifactory/$(repo/$(image_name):latest
+prod:
+    artifactory: collegis-shared-services-prod
+    repo: repo-collegis-shared-services-prod
+    tag: $(location)-docker.pkg.dev/$(artifactory/$(repo/$(image_name):latest
