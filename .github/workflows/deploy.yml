@@ -15,10 +15,10 @@ jobs:
       app_name: ${{steps.yaml_read.outputs.app_name}}
       image_name: ${{steps.yaml_read.outputs.image_name}}
       location: ${{steps.yaml_read.outputs.location}}
-      dev_tag: ${{steps.yaml_read.outputs.dev.tag}}
-      prod_tag: ${{steps.yaml_read.outputs.dev.tag}}
-      dev_service_name: ${{steps.yaml_read.outputs['dev.tag']}}
-      prod_service_name: ${{steps.yaml_read.outputs['prod.tag']}}
+      dev_tag: ${{steps.yaml_read.outputs.dev_tag}}
+      prod_tag: ${{steps.yaml_read.outputs.prod_tag}}
+      dev_service_name: ${{steps.yaml_read.outputs.dev_service_name}}
+      prod_service_name: ${{steps.yaml_read.outputs.prod_service_name}}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
