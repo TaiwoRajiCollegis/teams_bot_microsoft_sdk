@@ -128,7 +128,7 @@ jobs:
 
       - name: Deploy ED to Cloud Run (Prod)
         run: |
-          gcloud run ${{needs.get_params.outputs.prod_service_name}} \
+          gcloud run deploy ${{needs.get_params.outputs.prod_service_name}} \
             --image=${{needs.get_params.outputs.prod_tag}} \
             --region=${{needs.get_params.outputs.location}} \
             --port=${{needs.get_params.outputs.port}}\
