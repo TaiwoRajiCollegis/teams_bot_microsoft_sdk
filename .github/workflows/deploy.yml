@@ -62,6 +62,12 @@ jobs:
           with open("google_credentials.json","w+") as file:
             file.write(os.environ['creds'])
 
+      - name: echo
+        run: |
+          echo ${{needs.get_params.outputs.image_name}}
+          echo ${{needs.get_params.outputs.dev_tag}}
+          echo docker tag  ${{needs.get_params.outputs.image_name}} ${{needs.get_params.outputs.dev_tag}}
+
       - name: Build and Push ED Docker Image
         run: |
           docker build -t  ${{needs.get_params.outputs.image_name}} -f Dockerfile .
