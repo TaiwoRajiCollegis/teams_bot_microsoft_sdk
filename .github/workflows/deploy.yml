@@ -17,8 +17,8 @@ jobs:
       location: ${{steps.yaml_read.outputs.location}}
       dev_tag: ${{steps.yaml_read.outputs.dev.tag}}
       prod_tag: ${{steps.yaml_read.outputs.dev.tag}}
-      dev_service_name: ${{steps.yaml_read.outputs.dev.tag}}
-      prod_service_name: ${{steps.yaml_read.outputs.dev.tag}}
+      dev_service_name: ${{steps.yaml_read.outputs['dev.tag']}}
+      prod_service_name: ${{steps.yaml_read.outputs['prod.tag']}}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
