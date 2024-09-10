@@ -54,7 +54,7 @@ cot= ChainOfThoughtCallbackHandler(logger=logger)
 #     json.dump(gcreds, file)
 
 # langchain.debug = True
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "collegis-sandbox-taiwo-58826b977943.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 template = """
 You are Ed a Chatbot created by taiwo raji to Assist Collegis Employees You will assume the Profile Defined in The profile Section
 You have the ability to use tools 
