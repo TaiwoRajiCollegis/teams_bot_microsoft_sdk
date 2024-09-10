@@ -4,8 +4,8 @@ location: us-central1
 nonprod:
     artifactory: collegis-shared-services-dev
     repo: repo-collegis-shared-services-dev
-    tag: $(location)-docker.pkg.dev/$(artifactory)/$(repo)/$(image_name):latest
+    tag: $(location)-docker.pkg.dev/$(dev.artifactory)/$(repo)/$(image_name):latest
 prod:
     artifactory: collegis-shared-services-prod
     repo: repo-collegis-shared-services-prod
-    tag: $(location)-docker.pkg.dev/$(artifactory)/$(repo)/$(image_name):latest
+    tag: $(location)-docker.pkg.dev/$(prod.artifactory)/$(repo)/$(image_name):latest
