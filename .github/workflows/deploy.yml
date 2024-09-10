@@ -21,6 +21,7 @@ jobs:
       prod_service_name: ${{steps.yaml_read.outputs.dev.tag}}
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v4
     - name: YAML Read
       id: yaml_read
       uses: pietrobolcato/action-read-yaml@1.1.0
