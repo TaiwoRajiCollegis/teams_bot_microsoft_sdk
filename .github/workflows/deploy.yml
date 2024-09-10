@@ -24,6 +24,8 @@ jobs:
     - name: YAML Read
       id: yaml_read
       uses: pietrobolcato/action-read-yaml@1.1.0
+      with:
+        config: ${{ github.workspace }}/params.yaml
 
     
 
