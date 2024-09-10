@@ -25,7 +25,7 @@ from botbuilder.core.teams import TeamsActivityHandler
 from botbuilder.schema import ChannelAccount
 import os
 import logging
-from helpers.history import RunnableWithMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 import json
 from langchain.tools import BaseTool, StructuredTool, tool
 from langchain_google_community import GoogleSearchAPIWrapper
